@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 set -o pipefail
@@ -37,7 +37,7 @@ HELM_OPTIONS=""
 CREATE_NAMESPACE=""
 WAIT=""
 
-if [ "{KUBERNETES_CONTEXT}" != "" ]; then 
+if [ "{KUBERNETES_CONTEXT}" != "" ]; then
     HELM_OPTIONS="--kube-context {KUBERNETES_CONTEXT}"
 fi
 
