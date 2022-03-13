@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 set -o pipefail
@@ -35,7 +35,7 @@ FORCE_HELM_VERSION={FORCE_HELM_VERSION}
 
 HELM_OPTIONS=""
 
-if [ "{KUBERNETES_CONTEXT}" != "" ]; then 
+if [ "{KUBERNETES_CONTEXT}" != "" ]; then
     HELM_OPTIONS="--kube-context {KUBERNETES_CONTEXT}"
 fi
 
