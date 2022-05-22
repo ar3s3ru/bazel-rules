@@ -4,16 +4,15 @@ load(
     "ImageInfo",
     "LayerInfo",
 )
-
-load("//helpers:helpers.bzl", "write_sh", "get_make_value_or_default")
+load("//helpers:helpers.bzl", "get_make_value_or_default", "write_sh")
 load("//k8s:k8s.bzl", "NamespaceDataInfo")
 
 def runfile(ctx, f):
-  """Return the runfiles relative path of f."""
-  if ctx.workspace_name:
-    return ctx.workspace_name + "/" + f.short_path
-  else:
-    return f.short_path
+    """Return the runfiles relative path of f."""
+    if ctx.workspace_name:
+        return ctx.workspace_name + "/" + f.short_path
+    else:
+        return f.short_path
 
 def _helm_release_impl(ctx):
     """Installs or upgrades a helm release.
@@ -37,7 +36,7 @@ def _helm_release_impl(ctx):
     tiller_namespace = ctx.attr.tiller_namespace
     release_name = ctx.attr.release_name
     helm_version = ctx.attr.helm_version or ""
-    kubernetes_context = ctx.attr.kubernetes_context
+    kubernetes_context = get_make_value_or_default(ctx, ctx.attr.kubernetes_context)
     create_namespace = ctx.attr.create_namespace
     wait = ctx.attr.wait
     stamp_files = [ctx.info_file, ctx.version_file]
@@ -50,11 +49,10 @@ def _helm_release_impl(ctx):
 
     if ctx.attr.namespace_dep:
         namespace = ctx.attr.namespace_dep[NamespaceDataInfo].namespace
+    elif ctx.attr.namespace:
+        namespace = ctx.attr.namespace
     else:
-        if ctx.attr.namespace:
-            namespace = ctx.attr.namespace
-        else:
-            namespace = "default"
+        namespace = "default"
 
     # Generates the exec bash file with the provided substitutions
     ctx.actions.expand_template(
@@ -75,46 +73,47 @@ def _helm_release_impl(ctx):
             "{CREATE_NAMESPACE}": create_namespace,
             "{WAIT}": wait,
             "%{stamp_statements}": "\n".join([
-              "\tread_variables %s" % runfile(ctx, f)
-              for f in stamp_files]),
-        }
+                "\tread_variables %s" % runfile(ctx, f)
+                for f in stamp_files
+            ]),
+        },
     )
 
     runfiles = ctx.runfiles(
         files = [
             chart,
             ctx.info_file,
-            ctx.version_file
-        ] + ctx.files.values_yaml + ctx.files.secrets_yaml + ctx.files.sops_yaml + helm_binary + helm3_binary + kubectl_binary
+            ctx.version_file,
+        ] + ctx.files.values_yaml + ctx.files.secrets_yaml + ctx.files.sops_yaml + helm_binary + helm3_binary + kubectl_binary,
     )
 
     return [DefaultInfo(
-      executable = exec_file,
-      runfiles = runfiles,
+        executable = exec_file,
+        runfiles = runfiles,
     )]
 
 helm_release = rule(
     implementation = _helm_release_impl,
     attrs = {
-      "chart": attr.label(allow_single_file = True, mandatory = True),
-      "namespace_dep": attr.label(mandatory = False),
-      "namespace": attr.string(mandatory = False),
-      "tiller_namespace": attr.string(mandatory = False, default = "tiller-system"),
-      "release_name": attr.string(mandatory = True),
-      "values_yaml": attr.label_list(allow_files = True, mandatory = False),
-      "secrets_yaml": attr.label_list(allow_files = True, mandatory = False),
-      "sops_yaml": attr.label(allow_single_file = True, mandatory = False),
-      "helm_version": attr.string(mandatory = False),
-      "kubernetes_context": attr.string(mandatory = False),
-      "create_namespace": attr.string(mandatory = False, default = ""),
-      "wait": attr.string(mandatory = False, default = ""),
-      "_script_template": attr.label(allow_single_file = True, default = ":helm-release.sh.tpl"),
+        "chart": attr.label(allow_single_file = True, mandatory = True),
+        "namespace_dep": attr.label(mandatory = False),
+        "namespace": attr.string(mandatory = False),
+        "tiller_namespace": attr.string(mandatory = False, default = "tiller-system"),
+        "release_name": attr.string(mandatory = True),
+        "values_yaml": attr.label_list(allow_files = True, mandatory = False),
+        "secrets_yaml": attr.label_list(allow_files = True, mandatory = False),
+        "sops_yaml": attr.label(allow_single_file = True, mandatory = False),
+        "helm_version": attr.string(mandatory = False),
+        "kubernetes_context": attr.string(mandatory = False),
+        "create_namespace": attr.string(mandatory = False, default = ""),
+        "wait": attr.string(mandatory = False, default = ""),
+        "_script_template": attr.label(allow_single_file = True, default = ":helm-release.sh.tpl"),
     },
     doc = "Installs or upgrades a new helm release",
     toolchains = [
         "@com_github_masmovil_bazel_rules//toolchains/helm:toolchain_type",
         "@com_github_masmovil_bazel_rules//toolchains/helm-3:toolchain_type",
-        "@com_github_masmovil_bazel_rules//toolchains/kubectl:toolchain_type"
+        "@com_github_masmovil_bazel_rules//toolchains/kubectl:toolchain_type",
     ],
     executable = True,
 )
